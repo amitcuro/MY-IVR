@@ -1,9 +1,9 @@
 import axios from 'axios'
 
 // API Base URL - Change this to your backend URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://jsonplaceholder.typicode.com'
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000'
 
-// Create axios instance
+// Create axios instance with better error handling
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -11,6 +11,36 @@ const apiClient = axios.create({
     'Content-Type': 'application/json'
   }
 })
+
+// Add request interceptor
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`📤 API Request: ${config.method.toUpperCase()} ${config.url}`)
+    return config
+  },
+  (error) => {
+    console.error('Request error:', error)
+    return Promise.reject(error)
+  }
+)
+
+// Add response interceptor
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`📥 API Response: ${response.status}`)
+    return response
+  },
+  (error) => {
+    if (error.response) {
+      console.error(`API Error: ${error.response.status}`, error.response.data)
+    } else if (error.request) {
+      console.error('No response received:', error.request)
+    } else {
+      console.error('Error setting up request:', error.message)
+    }
+    return Promise.reject(error)
+  }
+)
 
 // Contact API Service
 export const contactAPI = {
