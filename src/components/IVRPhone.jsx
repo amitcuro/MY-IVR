@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { contactAPI, callAPI } from '../services/apiService'
 
 export default function IVRPhone() {
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -7,6 +8,8 @@ export default function IVRPhone() {
   const [selectedMenu, setSelectedMenu] = useState(null)
   const [callLog, setCallLog] = useState([])
   const [callTimer, setCallTimer] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [notification, setNotification] = useState(null)
 
   const menuOptions = {
     main: {
@@ -73,12 +76,50 @@ export default function IVRPhone() {
 
   const handleEndCall = () => {
     if (callTimer) clearInterval(callTimer)
+    
+    // Save call to API
+    saveCallData(phoneNumber, callDuration, selectedMenu)
+    
     setInCall(false)
     setSelectedMenu(null)
     setCallLog([...callLog, { number: phoneNumber, duration: callDuration, time: new Date().toLocaleTimeString() }])
     setPhoneNumber('')
     setCallDuration(0)
     setCallTimer(null)
+  }
+
+  const saveCallData = async (number, duration, menu) => {
+    setLoading(true)
+    try {
+      // Save to contact database
+      const contactResult = await contactAPI.saveContact({
+        phoneNumber: number,
+        name: `Contact - ${number}`,
+        duration: duration,
+        menuPath: menu || 'main'
+      })
+
+      // Save call log
+      const callResult = await callAPI.saveCall({
+        phoneNumber: number,
+        duration: duration,
+        menuPath: menu || 'main'
+      })
+
+      if (contactResult.success || callResult.success) {
+        showNotification('✅ Call saved successfully!', 'success')
+      }
+    } catch (error) {
+      console.error('Error saving call:', error)
+      showNotification('⚠️ Failed to save call', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const showNotification = (message, type = 'info') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
   }
 
   const handleMenuSelect = (key, menuKey) => {
@@ -109,6 +150,15 @@ export default function IVRPhone() {
 
   return (
     <div className="w-full max-w-lg px-4">
+      {/* Notification Toast */}
+      {notification && (
+        <div className={`mb-4 p-3 rounded-lg text-white text-sm font-semibold text-center ${
+          notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          {notification.message}
+        </div>
+      )}
+
       {/* Phone Container */}
       <div className="bg-gradient-to-b from-gray-900 via-gray-800 to-black rounded-3xl border-8 border-gray-900 overflow-hidden shadow-2xl">
         {/* Notch */}
